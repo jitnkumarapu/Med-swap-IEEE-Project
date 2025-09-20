@@ -2,41 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* MedSwap Design System - Medical & Healthcare Theme
+All colors MUST be HSL for proper theming.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Core Colors - Medical Blue & Teal Theme */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Medical Primary - Professional Teal */
+    --primary: 189 85% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 189 85% 45%;
+    --primary-dark: 189 85% 25%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Healthcare Secondary - Soft Blue */
+    --secondary: 210 15% 95%;
+    --secondary-foreground: 215 25% 15%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Medical Accent - Health Green */
+    --accent: 142 69% 45%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 142 69% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Muted Medical Grays */
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 15% 45%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Medical Alert Red */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders & Inputs */
+    --border: 210 20% 88%;
+    --input: 210 20% 94%;
+    --ring: 189 85% 35%;
 
-    --radius: 0.5rem;
+    /* Medical Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(189, 85%, 35%), hsl(189, 85%, 45%));
+    --gradient-accent: linear-gradient(135deg, hsl(142, 69%, 45%), hsl(142, 69%, 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(189, 85%, 35%) 0%, hsl(142, 69%, 45%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%), hsl(210, 20%, 98%));
+
+    /* Medical Shadows */
+    --shadow-primary: 0 10px 30px -5px hsl(189 85% 35% / 0.2);
+    --shadow-card: 0 4px 20px -2px hsl(189 85% 35% / 0.08);
+    --shadow-hover: 0 8px 30px -4px hsl(189 85% 35% / 0.15);
+
+    /* Spacing & Radius */
+    --radius: 0.75rem;
+    --radius-large: 1rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,8 +79,9 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode for MedSwap - Maintains trust & readability */
+    --background: 215 28% 8%;
+    --foreground: 210 15% 92%;
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
@@ -100,6 +124,99 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-foreground font-semibold;
+  }
+}
+
+@layer components {
+  /* Medical Component Styles */
+  .medical-gradient {
+    background: var(--gradient-hero);
+  }
+
+  .card-medical {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+    border-radius: var(--radius);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-medical:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .btn-medical {
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-primary);
+    border-radius: var(--radius);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-medical:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Medical Search Styles */
+  .search-medical {
+    background: hsl(var(--card));
+    border: 2px solid hsl(var(--border));
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .search-medical:focus-within {
+    border-color: hsl(var(--primary));
+    box-shadow: var(--shadow-primary);
+  }
+
+  /* Medical Badge Styles */
+  .badge-price {
+    background: var(--gradient-accent);
+    color: hsl(var(--accent-foreground));
+    border-radius: calc(var(--radius) / 2);
+    font-weight: 600;
+  }
+
+  .badge-salt {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.2);
+    border-radius: calc(var(--radius) / 2);
+  }
+
+  /* Animation Classes */
+  .animate-fade-up {
+    animation: fade-up 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-pulse-gentle {
+    animation: pulse-gentle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-gentle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
   }
 }
