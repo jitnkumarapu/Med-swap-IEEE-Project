@@ -4,12 +4,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Filter, X, DollarSign, Building, Pill } from 'lucide-react';
+import { Filter, X, DollarSign, Building, Activity } from 'lucide-react';
 
 export interface FilterOptions {
   priceRange: [number, number];
   brands: string[];
-  dosageForms: string[];
+  diseases: string[];
+  dosageForms?: string[];
 }
 
 interface FilterPanelProps {
@@ -17,7 +18,7 @@ interface FilterPanelProps {
   onChange: (filters: FilterOptions) => void;
   availableOptions: {
     brands: string[];
-    dosageForms: string[];
+    diseases: string[];
     priceRange: [number, number];
   };
   onReset: () => void;
@@ -47,20 +48,21 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     });
   };
 
-  const toggleDosageForm = (form: string) => {
-    const newForms = filters.dosageForms.includes(form)
-      ? filters.dosageForms.filter(f => f !== form)
-      : [...filters.dosageForms, form];
+  const toggleDisease = (disease: string) => {
+    const newDiseases = filters.diseases.includes(disease)
+      ? filters.diseases.filter(d => d !== disease)
+      : [...filters.diseases, disease];
     
     onChange({
       ...filters,
-      dosageForms: newForms,
+      diseases: newDiseases,
     });
   };
 
   const hasActiveFilters = 
-    filters.brands.length > 0 || 
-    filters.dosageForms.length > 0 ||
+    (filters.brands?.length > 0) || 
+    (filters.diseases?.length > 0) ||
+    (filters.dosageForms?.length > 0) ||
     filters.priceRange[0] !== availableOptions.priceRange[0] ||
     filters.priceRange[1] !== availableOptions.priceRange[1];
 
@@ -139,30 +141,32 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           </div>
         </div>
 
-        {/* Dosage Form Filter */}
+        {/* Diseases Filter */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Pill className="w-4 h-4 text-primary" />
-            <h4 className="font-medium">Dosage Form</h4>
-            {filters.dosageForms.length > 0 && (
+            <Activity className="w-4 h-4 text-primary" />
+            <h4 className="font-medium">Diseases</h4>
+            {filters.diseases.length > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {filters.dosageForms.length}
+                {filters.diseases.length}
               </Badge>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {availableOptions.dosageForms.map(form => (
-              <button
-                key={form}
-                onClick={() => toggleDosageForm(form)}
-                className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                  filters.dosageForms.includes(form)
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-primary'
-                }`}
-              >
-                {form}
-              </button>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {availableOptions.diseases.map(disease => (
+              <div key={disease} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`disease-${disease}`}
+                  checked={filters.diseases.includes(disease)}
+                  onCheckedChange={() => toggleDisease(disease)}
+                />
+                <label
+                  htmlFor={`disease-${disease}`}
+                  className="text-sm text-foreground cursor-pointer flex-1 hover:text-primary transition-colors"
+                >
+                  {disease}
+                </label>
+              </div>
             ))}
           </div>
         </div>
@@ -182,14 +186,14 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                   {brand} ×
                 </Badge>
               ))}
-              {filters.dosageForms.map(form => (
+              {filters.diseases.map(disease => (
                 <Badge
-                  key={form}
+                  key={disease}
                   variant="secondary"
                   className="text-xs cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => toggleDosageForm(form)}
+                  onClick={() => toggleDisease(disease)}
                 >
-                  {form} ×
+                  {disease} ×
                 </Badge>
               ))}
             </div>

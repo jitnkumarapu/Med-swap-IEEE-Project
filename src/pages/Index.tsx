@@ -15,7 +15,7 @@ import { FileText, Sparkles, Users, TrendingUp, Filter, X } from 'lucide-react';
 
 const Index = () => {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [alternatives, setAlternatives] = useState<Medicine[]>([]);
+  const [alternatives, setAlternatives] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -31,6 +31,7 @@ const Index = () => {
     return {
       priceRange: options.priceRange,
       brands: [],
+      diseases: [],
       dosageForms: [],
     };
   });
@@ -114,11 +115,12 @@ const Index = () => {
     setFilters({
       priceRange: availableOptions.priceRange,
       brands: [],
+      diseases: [],
       dosageForms: [],
     });
   }, [availableOptions]);
 
-  const displayResults = alternatives.length > 0 ? alternatives : filteredResults.map(r => r.medicine);
+  const displayResults = alternatives.length > 0 ? alternatives : filteredResults;
   const isShowingAlternatives = alternatives.length > 0;
 
   return (
@@ -147,58 +149,18 @@ const Index = () => {
                 suggestions={searchSuggestions}
                 placeholder="Search medicines, salts, or medical conditions..."
               />
+              
+
             </div>
           </div>
         </section>
 
-        {/* Stats Section */}
-        <section className="py-12 px-4 border-b border-border">
-          <div className="container mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {[
-                { icon: FileText, label: 'Medicines', value: '20+', color: 'text-primary' },
-                { icon: Sparkles, label: 'Smart Search', value: '99%', color: 'text-accent' },
-                { icon: Users, label: 'Brands', value: '15+', color: 'text-primary' },
-                { icon: TrendingUp, label: 'Accuracy', value: '95%', color: 'text-accent' },
-              ].map((stat, index) => (
-                <div key={index} className="text-center animate-fade-up" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <stat.icon className={`w-8 h-8 mx-auto mb-2 ${stat.color}`} />
-                  <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
           {(searchResults.length > 0 || alternatives.length > 0 || isSearching) && (
             <div className="flex flex-col lg:flex-row gap-6">
-              {/* Filters */}
-              <aside className="lg:w-80">
-                <div className="lg:hidden mb-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="w-full"
-                  >
-                    <Filter className="w-4 h-4 mr-2" />
-                    {showFilters ? 'Hide' : 'Show'} Filters
-                    {showFilters && <X className="w-4 h-4 ml-auto" />}
-                  </Button>
-                </div>
-                
-                <div className={`lg:block ${showFilters ? 'block' : 'hidden'}`}>
-                  <FilterPanel
-                    filters={filters}
-                    onChange={setFilters}
-                    availableOptions={availableOptions}
-                    onReset={resetFilters}
-                  />
-                </div>
-              </aside>
-
               {/* Results */}
               <div className="flex-1">
                 {/* Results Header */}
@@ -241,10 +203,10 @@ const Index = () => {
                 {/* Results Grid */}
                 {!isSearching && displayResults.length > 0 && (
                   <div className="grid gap-6 md:grid-cols-2">
-                    {displayResults.map((medicine) => (
-                      <div key={medicine.id} className="animate-fade-up">
+                    {displayResults.map((item) => (
+                      <div key={isShowingAlternatives ? `alt-${item.medicine.id}` : `med-${item.medicine.id}`} className="animate-fade-up no-overlap">
                         <MedicineCard
-                          medicine={medicine}
+                          medicine={isShowingAlternatives ? item.medicine : item.medicine}
                           onViewDetails={handleViewDetails}
                           onFindAlternatives={handleFindAlternatives}
                           showAlternativeLabel={isShowingAlternatives}

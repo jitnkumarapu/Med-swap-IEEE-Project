@@ -48,6 +48,20 @@ const SearchBar: React.FC<SearchBarProps> = ({
     onSearch('');
   };
 
+  // Common diseases for search - removed duplicates and consolidated similar conditions
+  const commonDiseases = [
+    "Bacterial infections",
+    "Respiratory infections",
+    "Asthma",
+    "COPD",
+    "Allergies",
+    "Hypertension",
+    "Diabetes",
+    "Pain relief",
+    "Headache",
+    "Fever"
+  ];
+
   return (
     <div className="relative w-full max-w-2xl mx-auto">
       {/* Search Input Container */}
@@ -96,19 +110,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       )}
 
-      {/* Quick Search Tags */}
-      <div className="mt-4 flex flex-wrap gap-2 justify-center">
-        {['Paracetamol', 'Fever', 'Headache', 'Antibiotics', 'Blood pressure'].map((tag) => (
-          <button
-            key={tag}
-            onClick={() => handleSuggestionClick(tag)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full transition-colors"
-          >
-            {tag === 'Fever' ? <Activity className="w-3 h-3" /> : <Pill className="w-3 h-3" />}
-            {tag}
-          </button>
-        ))}
-      </div>
+
     </div>
   );
 };

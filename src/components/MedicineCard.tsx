@@ -43,18 +43,8 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
   } = medicine;
 
   return (
-    <Card className="card-medical relative overflow-hidden group">
-      {/* Alternative Badge */}
-      {showAlternativeLabel && isAlternative && (
-        <div className="absolute top-3 right-3 z-10">
-          <Badge className="badge-price text-xs px-2 py-1">
-            Alternative
-            {similarityScore && (
-              <span className="ml-1">({Math.round(similarityScore)}% match)</span>
-            )}
-          </Badge>
-        </div>
-      )}
+    <Card className="card-medical relative overflow-hidden group no-overlap">
+      {/* Alternative Badge - Removed to prevent overlapping with price */}
 
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -67,8 +57,8 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
             )}
           </div>
           <div className="text-right">
-            <div className="badge-price text-sm px-2 py-1 inline-block">
-              ₹{price.toFixed(2)}
+            <div className="text-sm px-2 py-1 inline-block">
+              ₹{price ? price.toFixed(2) : '0.00'}
             </div>
           </div>
         </div>
@@ -136,16 +126,16 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
             variant="outline"
             size="sm"
             onClick={() => onViewDetails(medicine)}
-            className="flex-1 h-9"
+            className="flex-1 h-9 interactive-element"
           >
             <Info className="w-4 h-4 mr-2" />
-            Details
+            View Details
           </Button>
           <Button
             variant="default"
             size="sm"
             onClick={() => onFindAlternatives(medicine)}
-            className="flex-1 h-9 bg-primary hover:bg-primary-dark text-primary-foreground"
+            className="flex-1 h-9 bg-primary hover:bg-primary-dark text-primary-foreground interactive-element"
           >
             <Star className="w-4 h-4 mr-2" />
             Alternatives
