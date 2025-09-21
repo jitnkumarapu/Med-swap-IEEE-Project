@@ -1,6 +1,7 @@
 import React from 'react';
 import { Heart, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -18,7 +19,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMenuOpen = false }) => 
       <div className="relative container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 transform transition-transform hover:scale-105">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <Heart className="w-6 h-6 text-white" />
             </div>
@@ -26,25 +27,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMenuOpen = false }) => 
               <h1 className="text-2xl font-bold text-white">MedSwap</h1>
               <p className="text-white/80 text-sm hidden sm:block">Smart Medicine Finder</p>
             </div>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#" className="text-white/90 hover:text-white transition-colors font-medium">
+            <Link to="/" className="text-white/90 hover:text-white transition-colors font-medium">
               Find Medicines
-            </a>
-            <a href="#" className="text-white/90 hover:text-white transition-colors font-medium">
+            </Link>
+            <Link to="/" className="text-white/90 hover:text-white transition-colors font-medium">
               Alternatives
-            </a>
-            <a href="#" className="text-white/90 hover:text-white transition-colors font-medium">
+            </Link>
+            <Link to="/about" className="text-white/90 hover:text-white transition-colors font-medium">
               About
-            </a>
-            <Button 
-              variant="outline" 
-              className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-primary backdrop-blur-sm"
-            >
-              Upload CSV
-            </Button>
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -62,21 +57,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, isMenuOpen = false }) => 
         {isMenuOpen && (
           <div className="md:hidden mt-4 pt-4 border-t border-white/20 animate-fade-up">
             <nav className="flex flex-col gap-3">
-              <a href="#" className="text-white/90 hover:text-white transition-colors font-medium py-2">
+              <Link to="/" className="text-white/90 hover:text-white transition-colors font-medium py-2">
                 Find Medicines
-              </a>
-              <a href="#" className="text-white/90 hover:text-white transition-colors font-medium py-2">
+              </Link>
+              <Link to="/" className="text-white/90 hover:text-white transition-colors font-medium py-2">
                 Alternatives
-              </a>
-              <a href="#" className="text-white/90 hover:text-white transition-colors font-medium py-2">
+              </Link>
+              <Link to="/about" className="text-white/90 hover:text-white transition-colors font-medium py-2">
                 About
-              </a>
-              <Button 
-                variant="outline" 
-                className="bg-white/10 border-white/30 text-white hover:bg-white hover:text-primary backdrop-blur-sm mt-2"
-              >
-                Upload CSV
-              </Button>
+              </Link>
             </nav>
           </div>
         )}

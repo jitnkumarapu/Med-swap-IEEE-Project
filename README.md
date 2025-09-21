@@ -1,73 +1,100 @@
-# Welcome to your Lovable project
+# Med Swap Finder
 
-## Project info
+A modern web application for finding medicine alternatives and substitutes based on active ingredients, diseases, and other criteria.
 
-**URL**: https://lovable.dev/projects/e88be1c1-9512-4938-b886-26b53304e6d6
+## Project Overview
 
-## How can I edit this code?
+Med Swap Finder helps users find alternative medications by searching for medicines by name, active ingredients (salts), or medical conditions. The application uses advanced search algorithms to provide relevant results and alternatives.
 
-There are several ways of editing your application.
+## Key Features
 
-**Use Lovable**
+- **Intelligent Search**: Search by medicine name, active ingredients, or medical conditions
+- **Disease-Based Matching**: Find all medicines that treat the same conditions
+- **Similarity Scoring**: Medicines are ranked by relevance and similarity
+- **Price Comparison**: Compare alternatives sorted by price
+- **Filtering Options**: Filter results by brand, price range, and dosage form
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e88be1c1-9512-4938-b886-26b53304e6d6) and start prompting.
+## Technical Implementation
 
-Changes made via Lovable will be committed automatically to this repo.
+### Search Engine Algorithm
 
-**Use your preferred IDE**
+The search engine uses a multi-layered approach:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. **Indexing**:
+   - Creates optimized indices for medicine names, active ingredients, and diseases
+   - Builds a trigram index for fuzzy matching
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. **Search Process**:
+   - Exact matching for disease names
+   - Token-based matching for medicine names and ingredients
+   - Trigram-based fuzzy matching for handling typos and partial matches
 
-Follow these steps:
+3. **Disease Matching**:
+   - When a disease is searched, the engine finds all medicines with that disease
+   - Then finds all medicines sharing any diseases with the matched medicines
+   - This creates a comprehensive set of alternatives for treating the same conditions
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. **Relevance Scoring**:
+   - Exact matches receive a score of 1.0
+   - Related disease matches receive a score of 0.9
+   - Fuzzy matches receive scores based on trigram similarity
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Performance Optimizations
 
-# Step 3: Install the necessary dependencies.
-npm i
+- **Efficient Data Structures**: Uses Maps and Sets for O(1) lookups
+- **Single-Pass Indexing**: Builds all indices in a single pass through the data
+- **Early Returns**: Returns exact matches quickly without unnecessary processing
+- **Limited Result Sets**: Limits results to top matches for better performance
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## Technology Stack
+
+- **Frontend**: React with TypeScript
+- **UI Framework**: Tailwind CSS with Shadcn UI components
+- **Build Tool**: Vite
+- **State Management**: React hooks and context
+- **Search Algorithm**: Custom implementation with trigram-based fuzzy matching
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+
+### Installation
+
+```bash
+# Clone the repository
+git clone <repository-url>
+
+# Navigate to the project directory
+cd med-swap-finder
+
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Enter a medicine name, active ingredient, or medical condition in the search bar
+2. View the matching medicines and their alternatives
+3. Use filters to narrow down results by brand, price, or dosage form
 
-**Use GitHub Codespaces**
+## Project Structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- `/src/components`: UI components
+- `/src/data`: Mock medicine data
+- `/src/utils`: Utility functions including the search engine
+- `/src/pages`: Application pages
+- `/src/hooks`: Custom React hooks
 
-## What technologies are used for this project?
+## Future Enhancements
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e88be1c1-9512-4938-b886-26b53304e6d6) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Integration with real medicine databases
+- User accounts for saving favorite medicines
+- Prescription management
+- Mobile application
+- Internationalization for multiple languages and regions
