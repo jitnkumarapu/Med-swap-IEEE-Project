@@ -32,9 +32,10 @@ export class MedSwapSearchEngine {
   private trigramIndex: Map<string, Set<number>>;
   private trigramFreq: Map<string, number>;
   
-  // Cache for frequent queries
+  // Cache for frequent queries with size limits
   private queryCache: Map<string, SearchResult[]>;
   private alternativeCache: Map<number, SearchResult[]>;
+  private readonly MAX_CACHE_SIZE = 100;
   
   // Pre-computed filter options
   private filterOptions: { brands: string[], diseases: string[], priceRange: [number, number] } | null = null;
@@ -59,6 +60,183 @@ export class MedSwapSearchEngine {
     this.alternativeCache = new Map();
     
     this.buildOptimizedIndices();
+  }
+
+  // Method to add more medicines dynamically with optimized incremental indexing
+  addMedicines(newMedicines: Medicine[]): void {
+    // Add to medicines array
+    this.medicines.push(...newMedicines);
+    
+    // Add to medicine map
+    newMedicines.forEach(m => this.medicineMap.set(m.id, m));
+    
+    // Batch process indices for better performance
+    this.buildBatchIndices(newMedicines);
+    
+    // Clear caches as data has changed
+    this.queryCache.clear();
+    this.alternativeCache.clear();
+  }
+
+  // Cache management methods
+  private cacheQuery(query: string, results: SearchResult[]): void {
+    if (this.queryCache.size >= this.MAX_CACHE_SIZE) {
+      // Remove oldest entry (simple LRU approximation)
+      const firstKey = this.queryCache.keys().next().value;
+      this.queryCache.delete(firstKey);
+    }
+    this.queryCache.set(query, results);
+  }
+
+  private cacheAlternative(medicineId: number, results: SearchResult[]): void {
+    if (this.alternativeCache.size >= this.MAX_CACHE_SIZE) {
+      // Remove oldest entry
+      const firstKey = this.alternativeCache.keys().next().value;
+      this.alternativeCache.delete(firstKey);
+    }
+    this.alternativeCache.set(medicineId, results);
+  }
+
+  // Optimized batch indexing for better performance with large datasets
+  private buildBatchIndices(newMedicines: Medicine[]): void {
+    // Pre-allocate arrays for batch operations
+    const nameEntries: Array<{key: string, id: number, score: number}> = [];
+    const saltEntries: Array<{key: string, id: number, score: number}> = [];
+    const diseaseEntries: Array<{key: string, id: number, score: number}> = [];
+    const brandEntries: Array<{key: string, id: number, score: number}> = [];
+    const trigramEntries: Array<{key: string, id: number}> = [];
+    
+    // Process all medicines in batch
+    for (const medicine of newMedicines) {
+      const { id, name, salts, diseases, brand, price } = medicine;
+      
+      // Price-based score modifier (cheaper = slightly higher score)
+      const priceModifier = 1.0 / (1.0 + price * 0.001);
+      const baseScore = 1.0 + priceModifier * 0.1;
+      
+      // Collect name entries
+      nameEntries.push({key: name.toLowerCase(), id, score: baseScore});
+      name.split(/\s+/).forEach(token => {
+        if (token.length > 2) {
+          nameEntries.push({key: token.toLowerCase(), id, score: baseScore * 0.8});
+        }
+      });
+      
+      // Collect salt entries
+      salts.forEach(salt => {
+        saltEntries.push({key: salt.toLowerCase(), id, score: baseScore});
+        salt.split(/\s+/).forEach(token => {
+          if (token.length > 2) {
+            saltEntries.push({key: token.toLowerCase(), id, score: baseScore * 0.8});
+          }
+        });
+      });
+      
+      // Collect disease entries
+      diseases.forEach(disease => {
+        diseaseEntries.push({key: disease.toLowerCase(), id, score: baseScore});
+        disease.split(/\s+/).forEach(token => {
+          if (token.length > 2) {
+            diseaseEntries.push({key: token.toLowerCase(), id, score: baseScore * 0.8});
+          }
+        });
+      });
+      
+      // Collect brand entries
+      brandEntries.push({key: brand.toLowerCase(), id, score: baseScore * 0.7});
+      
+      // Collect trigram entries
+      const text = `${name} ${salts.join(' ')} ${diseases.join(' ')}`.toLowerCase();
+      for (let i = 0; i <= text.length - 3; i++) {
+        const trigram = text.slice(i, i + 3);
+        trigramEntries.push({key: trigram, id});
+      }
+    }
+    
+    // Batch update indices
+    this.batchUpdateIndex(this.exactNameIndex, nameEntries);
+    this.batchUpdateIndex(this.exactSaltIndex, saltEntries);
+    this.batchUpdateIndex(this.exactDiseaseIndex, diseaseEntries);
+    this.batchUpdateIndex(this.brandIndex, brandEntries);
+    
+    // Update trigram index
+    trigramEntries.forEach(({key, id}) => {
+      if (!this.trigramIndex.has(key)) {
+        this.trigramIndex.set(key, new Set());
+      }
+      this.trigramIndex.get(key)!.add(id);
+      this.trigramFreq.set(key, (this.trigramFreq.get(key) || 0) + 1);
+    });
+  }
+  
+  // Batch update index entries for better performance
+  private batchUpdateIndex(index: Map<string, IndexEntry[]>, entries: Array<{key: string, id: number, score: number}>): void {
+    const groupedEntries = new Map<string, IndexEntry[]>();
+    
+    // Group entries by key
+    entries.forEach(({key, id, score}) => {
+      if (!groupedEntries.has(key)) {
+        groupedEntries.set(key, []);
+      }
+      groupedEntries.get(key)!.push({id, score});
+    });
+    
+    // Update index in batch
+    groupedEntries.forEach((newEntries, key) => {
+      if (index.has(key)) {
+        const existing = index.get(key)!;
+        existing.push(...newEntries);
+        existing.sort((a, b) => b.score - a.score);
+      } else {
+        index.set(key, newEntries.sort((a, b) => b.score - a.score));
+      }
+    });
+  }
+
+  // Incrementally build indices for new medicines only (much faster)
+  private buildIncrementalIndices(newMedicines: Medicine[]): void {
+    for (const medicine of newMedicines) {
+      const { id, name, salts, diseases, brand, price } = medicine;
+      
+      // Price-based score modifier (cheaper = slightly higher score)
+      const priceModifier = 1.0 / (1.0 + price * 0.001);
+      
+      // Index name (exact and tokens)
+      this.addToIndex(this.exactNameIndex, name.toLowerCase(), id, 1.0 + priceModifier * 0.1);
+      const nameTokens = this.tokenize(name);
+      nameTokens.forEach(token => {
+        this.addToIndex(this.nameTokenIndex, token, id, 0.9 + priceModifier * 0.1);
+        this.addTrigrams(this.trigramIndex, this.trigramFreq, token, id);
+      });
+      
+      // Index salts (exact and tokens)
+      salts.forEach(salt => {
+        this.addToIndex(this.exactSaltIndex, salt.toLowerCase(), id, 0.95 + priceModifier * 0.05);
+        const saltTokens = this.tokenize(salt);
+        saltTokens.forEach(token => {
+          this.addToIndex(this.saltTokenIndex, token, id, 0.85 + priceModifier * 0.05);
+          this.addTrigrams(this.trigramIndex, this.trigramFreq, token, id);
+        });
+      });
+      
+      // Index diseases (exact and tokens) - highest priority
+      if (diseases?.length) {
+        diseases.forEach(disease => {
+          this.addToIndex(this.exactDiseaseIndex, disease.toLowerCase(), id, 1.0 + priceModifier * 0.2);
+          const diseaseTokens = this.tokenize(disease);
+          diseaseTokens.forEach(token => {
+            this.addToIndex(this.diseaseTokenIndex, token, id, 0.9 + priceModifier * 0.2);
+            this.addTrigrams(this.trigramIndex, this.trigramFreq, token, id);
+          });
+        });
+      }
+      
+      // Index brand
+      this.addToIndex(this.brandIndex, brand.toLowerCase(), id, 0.8 + priceModifier * 0.1);
+    }
+    
+    // Sort only the affected index entries (much faster than sorting all)
+    this.sortIndexEntries(newMedicines);
   }
 
   // Build all indices in a single optimized pass
@@ -158,6 +336,57 @@ export class MedSwapSearchEngine {
     index.get(key)!.push({ id, score });
   }
 
+  // Sort only the index entries that were affected by new medicines
+  private sortIndexEntries(newMedicines: Medicine[]): void {
+    const affectedKeys = new Set<string>();
+    
+    // Collect all keys that were affected by new medicines
+    newMedicines.forEach(medicine => {
+      const { name, salts, diseases, brand } = medicine;
+      
+      // Name keys
+      affectedKeys.add(name.toLowerCase());
+      this.tokenize(name).forEach(token => affectedKeys.add(token));
+      
+      // Salt keys
+      salts.forEach(salt => {
+        affectedKeys.add(salt.toLowerCase());
+        this.tokenize(salt).forEach(token => affectedKeys.add(token));
+      });
+      
+      // Disease keys
+      if (diseases?.length) {
+        diseases.forEach(disease => {
+          affectedKeys.add(disease.toLowerCase());
+          this.tokenize(disease).forEach(token => affectedKeys.add(token));
+        });
+      }
+      
+      // Brand key
+      affectedKeys.add(brand.toLowerCase());
+    });
+    
+    // Sort only the affected entries
+    const indices = [
+      this.exactNameIndex,
+      this.nameTokenIndex,
+      this.exactSaltIndex,
+      this.saltTokenIndex,
+      this.exactDiseaseIndex,
+      this.diseaseTokenIndex,
+      this.brandIndex
+    ];
+    
+    indices.forEach(index => {
+      affectedKeys.forEach(key => {
+        const entries = index.get(key);
+        if (entries) {
+          entries.sort((a, b) => b.score - a.score);
+        }
+      });
+    });
+  }
+
   private addTrigrams(trigramIndex: Map<string, Set<number>>, freqMap: Map<string, number>, text: string, id: number): void {
     if (text.length < 3) return;
     
@@ -174,12 +403,6 @@ export class MedSwapSearchEngine {
     }
   }
 
-  private tokenize(text: string): string[] {
-    return text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(token => token.length > 1);
-  }
 
   private getTrigrams(text: string): string[] {
     const trigrams: string[] = [];
@@ -239,72 +462,45 @@ export class MedSwapSearchEngine {
     return (2.0 * weightedIntersection) / (totalWeight1 + totalWeight2);
   }
 
-  // Ultra-fast search with intelligent candidate selection
+
+
+
+
+
+  // Optimized search method for large datasets
   search(query: string): SearchResult[] {
-    const normalizedQuery = query.toLowerCase().trim();
-    if (!normalizedQuery) return [];
-
+    if (!query.trim()) return [];
+    
     // Check cache first
-    if (this.queryCache.has(normalizedQuery)) {
-      return this.queryCache.get(normalizedQuery)!;
+    const cacheKey = query.toLowerCase().trim();
+    if (this.queryCache.has(cacheKey)) {
+      return this.queryCache.get(cacheKey)!;
     }
-
+    
+    const normalizedQuery = query.toLowerCase().trim();
     const results = new Map<number, SearchResult>();
-    const queryTokens = this.tokenize(normalizedQuery);
     
-    // Strategy 1: Exact matches (fastest, highest priority)
-    this.addExactMatches(results, normalizedQuery, queryTokens);
+    // 1. Exact matches (highest priority)
+    this.searchExactMatches(normalizedQuery, results);
     
-    // If we have enough high-quality results, return early
-    if (results.size >= 10 && Array.from(results.values()).some(r => r.relevanceScore >= 0.9)) {
-      const sortedResults = this.finalizeResults(results);
-      this.cacheQuery(normalizedQuery, sortedResults);
-      return sortedResults;
+    // 2. Token-based matches
+    this.searchTokenMatches(normalizedQuery, results);
+    
+    // 3. Fuzzy matches (limited to prevent performance issues)
+    if (results.size < 20) {
+      this.searchFuzzyMatches(normalizedQuery, results, 50);
     }
     
-    // Strategy 2: Token matches
-    this.addTokenMatches(results, queryTokens);
+    const finalResults = this.finalizeResults(results, 100);
     
-    // Strategy 3: Fuzzy matching (only if needed)
-    if (results.size < 15) {
-      this.addFuzzyMatches(results, normalizedQuery, queryTokens);
-    }
+    // Cache the results
+    this.cacheQuery(cacheKey, finalResults);
     
-    const sortedResults = this.finalizeResults(results);
-    this.cacheQuery(normalizedQuery, sortedResults);
-    return sortedResults;
+    return finalResults;
   }
-
-  private addExactMatches(results: Map<number, SearchResult>, query: string, tokens: string[]): void {
-    // Exact disease matches (highest priority)
-    const diseaseEntries = this.exactDiseaseIndex.get(query) || [];
-    diseaseEntries.forEach(entry => {
-      const medicine = this.medicineMap.get(entry.id)!;
-      if (!results.has(entry.id) || results.get(entry.id)!.relevanceScore < entry.score) {
-        results.set(entry.id, {
-          medicine,
-          relevanceScore: entry.score * 1.5, // Higher disease boost
-          matchType: 'disease'
-        });
-      }
-    });
-
-    // Check if query contains disease words - broader matching
-    this.exactDiseaseIndex.forEach((entries, diseaseKey) => {
-      if (query.includes(diseaseKey) || diseaseKey.includes(query)) {
-        entries.forEach(entry => {
-          if (!results.has(entry.id)) {
-            const medicine = this.medicineMap.get(entry.id)!;
-            results.set(entry.id, {
-              medicine,
-              relevanceScore: entry.score * 1.4,
-              matchType: 'disease'
-            });
-          }
-        });
-      }
-    });
-
+  
+  // Search exact matches
+  private searchExactMatches(query: string, results: Map<number, SearchResult>): void {
     // Exact name matches
     const nameEntries = this.exactNameIndex.get(query) || [];
     nameEntries.forEach(entry => {
@@ -317,7 +513,7 @@ export class MedSwapSearchEngine {
         });
       }
     });
-
+    
     // Exact salt matches
     const saltEntries = this.exactSaltIndex.get(query) || [];
     saltEntries.forEach(entry => {
@@ -325,156 +521,130 @@ export class MedSwapSearchEngine {
         const medicine = this.medicineMap.get(entry.id)!;
         results.set(entry.id, {
           medicine,
-          relevanceScore: entry.score,
+          relevanceScore: entry.score * 0.95,
           matchType: 'salt'
         });
       }
     });
-
-    // Exact brand matches
-    const brandEntries = this.brandIndex.get(query) || [];
-    brandEntries.forEach(entry => {
+    
+    // Exact disease matches
+    const diseaseEntries = this.exactDiseaseIndex.get(query) || [];
+    diseaseEntries.forEach(entry => {
       if (!results.has(entry.id)) {
         const medicine = this.medicineMap.get(entry.id)!;
         results.set(entry.id, {
           medicine,
-          relevanceScore: entry.score,
-          matchType: 'brand'
+          relevanceScore: entry.score * 0.9,
+          matchType: 'disease'
         });
       }
     });
   }
-
-  private addTokenMatches(results: Map<number, SearchResult>, tokens: string[]): void {
-    const candidateScores = new Map<number, { score: number, matchType: 'name' | 'salt' | 'disease' | 'brand' }>();
+  
+  // Search token-based matches
+  private searchTokenMatches(query: string, results: Map<number, SearchResult>): void {
+    const tokens = this.tokenize(query);
     
     tokens.forEach(token => {
-      // Disease token matches (highest priority)
-      const diseaseEntries = this.diseaseTokenIndex.get(token) || [];
-      diseaseEntries.slice(0, 20).forEach(entry => { // Limit per token for performance
-        const existing = candidateScores.get(entry.id);
-        const boostedScore = entry.score * 1.5; // Higher disease boost
-        if (!existing || existing.score < boostedScore) {
-          candidateScores.set(entry.id, { score: boostedScore, matchType: 'disease' });
-        }
-      });
-
-      // Name token matches
-      const nameEntries = this.nameTokenIndex.get(token) || [];
-      nameEntries.slice(0, 20).forEach(entry => {
-        if (!candidateScores.has(entry.id)) {
-          candidateScores.set(entry.id, { score: entry.score, matchType: 'name' });
-        }
-      });
-
-      // Salt token matches
-      const saltEntries = this.saltTokenIndex.get(token) || [];
-      saltEntries.slice(0, 20).forEach(entry => {
-        if (!candidateScores.has(entry.id)) {
-          candidateScores.set(entry.id, { score: entry.score, matchType: 'salt' });
-        }
-      });
+      if (token.length > 2) {
+        // Name token matches
+        const nameEntries = this.nameTokenIndex.get(token) || [];
+        nameEntries.forEach(entry => {
+          if (!results.has(entry.id)) {
+            const medicine = this.medicineMap.get(entry.id)!;
+            results.set(entry.id, {
+              medicine,
+              relevanceScore: entry.score * 0.8,
+              matchType: 'name'
+            });
+          }
+        });
+        
+        // Salt token matches
+        const saltEntries = this.saltTokenIndex.get(token) || [];
+        saltEntries.forEach(entry => {
+          if (!results.has(entry.id)) {
+            const medicine = this.medicineMap.get(entry.id)!;
+            results.set(entry.id, {
+              medicine,
+              relevanceScore: entry.score * 0.75,
+              matchType: 'salt'
+            });
+          }
+        });
+        
+        // Disease token matches
+        const diseaseEntries = this.diseaseTokenIndex.get(token) || [];
+        diseaseEntries.forEach(entry => {
+          if (!results.has(entry.id)) {
+            const medicine = this.medicineMap.get(entry.id)!;
+            results.set(entry.id, {
+              medicine,
+              relevanceScore: entry.score * 0.7,
+              matchType: 'disease'
+            });
+          }
+        });
+      }
     });
-
-    // Lower threshold for disease matches specifically
-    candidateScores.forEach((data, id) => {
-      const threshold = data.matchType === 'disease' ? 0.5 : 0.7; // Lower threshold for diseases
-      if (data.score > threshold && !results.has(id)) {
+  }
+  
+  // Search fuzzy matches with trigram indexing
+  private searchFuzzyMatches(query: string, results: Map<number, SearchResult>, maxResults: number): void {
+    const queryTrigrams = this.generateTrigrams(query);
+    const candidateScores = new Map<number, number>();
+    
+    // Calculate trigram similarity scores
+    queryTrigrams.forEach(trigram => {
+      const medicineIds = this.trigramIndex.get(trigram);
+      if (medicineIds) {
+        const frequency = this.trigramFreq.get(trigram) || 1;
+        const weight = 1.0 / Math.sqrt(frequency); // Less common trigrams get higher weight
+        
+        medicineIds.forEach(id => {
+          if (!results.has(id)) {
+            candidateScores.set(id, (candidateScores.get(id) || 0) + weight);
+          }
+        });
+      }
+    });
+    
+    // Convert to search results (limited)
+    const sortedCandidates = Array.from(candidateScores.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, maxResults);
+    
+    sortedCandidates.forEach(([id, score]) => {
+      if (!results.has(id)) {
         const medicine = this.medicineMap.get(id)!;
         results.set(id, {
           medicine,
-          relevanceScore: data.score, // Use the score from candidateScores
-          matchType: data.matchType // Use the matchType from candidateScores
+          relevanceScore: Math.min(score * 0.1, 0.6), // Cap fuzzy match scores
+          matchType: 'fuzzy'
         });
       }
     });
   }
-
-  private addFuzzyMatches(results: Map<number, SearchResult>, query: string, tokens: string[]): void {
-    const candidateIds = new Set<number>();
-    const queryTrigrams = this.getTrigrams(query);
-    
-    // Use trigram index to find fuzzy candidates
-    queryTrigrams.forEach(trigram => {
-      const ids = this.trigramIndex.get(trigram);
-      if (ids && ids.size < 100) { // Skip very common trigrams
-        ids.forEach(id => candidateIds.add(id));
-      }
-    });
-
-    // Limit fuzzy matching for performance
-    const limitedCandidates = Array.from(candidateIds).slice(0, 200);
-    
-    limitedCandidates.forEach(id => {
-      if (results.has(id)) return;
-      
-      const medicine = this.medicineMap.get(id)!;
-      let bestScore = 0;
-      let bestMatchType: SearchResult['matchType'] = 'fuzzy';
-      
-      // Check name similarity (with a slight boost for direct name matches)
-      const nameScore = this.calculateSimilarity(medicine.name, query);
-      if (nameScore > bestScore) {
-        bestScore = nameScore;
-        bestMatchType = 'name';
-      }
-      
-      // Check disease similarity (with boost)
-      if (medicine.diseases?.length) {
-        for (const disease of medicine.diseases) {
-          const diseaseScore = this.calculateSimilarity(disease, query) * 1.3;
-          if (diseaseScore > bestScore) {
-            bestScore = diseaseScore;
-            bestMatchType = 'disease';
-          }
-        }
-      }
-      
-      // Check salt similarity
-      for (const salt of medicine.salts) {
-        const saltScore = this.calculateSimilarity(salt, query);
-        if (saltScore > bestScore) {
-          bestScore = saltScore;
-          bestMatchType = 'salt';
-        }
-      }
-      
-      if (bestScore > 0.5) {
-        results.set(id, {
-          medicine,
-          relevanceScore: bestScore,
-          matchType: bestScore > 0.6 ? bestMatchType : 'fuzzy'
-        });
-      }
-    });
-  }
-
-  private finalizeResults(results: Map<number, SearchResult>): SearchResult[] {
-    return Array.from(results.values())
-      .sort((a, b) => {
-        // Primary sort by relevance
-        if (Math.abs(b.relevanceScore - a.relevanceScore) > 0.01) {
-          return b.relevanceScore - a.relevanceScore;
-        }
-        // Secondary sort by price (cheaper first)
-        return a.medicine.price - b.medicine.price;
-      })
-      .slice(0, 20)
-      .map(result => {
-        result.medicine.isAlternative = true;
-        return result;
-      });
-  }
-
-  private cacheQuery(query: string, results: SearchResult[]): void {
-    if (this.queryCache.size >= 100) {
-      // Simple LRU: remove oldest entries
-      const keys = Array.from(this.queryCache.keys());
-      for (let i = 0; i < 20; i++) {
-        this.queryCache.delete(keys[i]);
-      }
+  
+  // Generate trigrams for fuzzy matching
+  private generateTrigrams(text: string): string[] {
+    const trigrams: string[] = [];
+    for (let i = 0; i <= text.length - 3; i++) {
+      trigrams.push(text.slice(i, i + 3));
     }
-    this.queryCache.set(query, results);
+    return trigrams;
+  }
+  
+  // Tokenize text for search
+  private tokenize(text: string): string[] {
+    return text.split(/\s+/).filter(token => token.length > 0);
+  }
+  
+  // Finalize and sort results
+  private finalizeResults(results: Map<number, SearchResult>, maxResults: number): SearchResult[] {
+    return Array.from(results.values())
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, maxResults);
   }
 
   // Optimized alternative finder
@@ -559,7 +729,7 @@ export class MedSwapSearchEngine {
       });
     }
 
-    const finalResults = this.finalizeResults(results);
+    const finalResults = this.finalizeResults(results, 20);
     
     // Cache the result
     if (this.alternativeCache.size >= 50) {
@@ -568,7 +738,7 @@ export class MedSwapSearchEngine {
         this.alternativeCache.delete(keys[i]);
       }
     }
-    this.alternativeCache.set(medicine.id, finalResults);
+    this.cacheAlternative(medicine.id, finalResults);
     
     return finalResults;
   }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X, Pill, Activity } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -17,6 +18,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [query, setQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  
+  // Debounce the query for auto-search
+  const debouncedQuery = useDebounce(query, 500);
 
   useEffect(() => {
     if (query.length > 1) {
@@ -29,6 +33,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
       setShowSuggestions(false);
     }
   }, [query, suggestions]);
+
+  // Auto-search with debounced query
+  useEffect(() => {
+    if (debouncedQuery && debouncedQuery.length > 2) {
+      onSearch(debouncedQuery);
+    }
+  }, [debouncedQuery, onSearch]);
 
   const handleSearch = (searchQuery: string = query) => {
     if (searchQuery.trim()) {

@@ -43,7 +43,7 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
   } = medicine;
 
   return (
-    <Card className="card-medical relative overflow-hidden group no-overlap">
+    <Card className="card-medical relative overflow-hidden group h-full w-full shadow-sm hover:shadow-md transition-shadow">
       {/* Alternative Badge - Removed to prevent overlapping with price */}
 
       <CardHeader className="pb-3">
@@ -64,7 +64,7 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 flex flex-col">
         {/* Brand & Form */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ const MedicineCard: React.FC<MedicineCardProps> = ({
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-2 mt-auto">
           <Button
             variant="outline"
             size="sm"
